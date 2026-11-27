@@ -52,9 +52,9 @@ body{background:var(--void);color:var(--ink);font-family:var(--body);margin:0;us
 
 <div class="hud" id="hud" hidden>
   <div class="guide">
-    <div class="g" id="g-blue" style="--c:var(--blue)"><span class="k">蒼</span><span class="t">아오<small>오른손 검지 · 접으면 발사</small></span></div>
-    <div class="g" id="g-red" style="--c:var(--red)"><span class="k">赫</span><span class="t">아카<small>왼손 검지</small></span></div>
-    <div class="g" id="g-purple" style="--c:var(--purple)"><span class="k">茈</span><span class="t">무라사키<small>양손 검지 끝을 맞댄다</small></span></div>
+    <div class="g" id="g-blue" style="--c:var(--blue)"><span class="k">蒼</span><span class="t">아오<small>오른손 검지 → 앞으로 내지르기</small></span></div>
+    <div class="g" id="g-red" style="--c:var(--red)"><span class="k">赫</span><span class="t">아카<small>왼손 검지 → 앞으로 내지르기</small></span></div>
+    <div class="g" id="g-purple" style="--c:var(--purple)"><span class="k">茈</span><span class="t">무라사키<small>양손 검지 맞대고 → 내지르기</small></span></div>
     <div class="g" id="g-domain" style="--c:var(--bone)"><span class="k">無</span><span class="t">무량공처<small>검지·중지를 펴서 유지</small></span></div>
   </div>
   <span id="stat">손 인식 대기</span>
@@ -64,11 +64,11 @@ body{background:var(--void);color:var(--ink);font-family:var(--body);margin:0;us
   <div class="panel">
     <div class="eyebrow">LIMITLESS</div>
     <h1>무하한 술식</h1>
-    <p class="lede">웹캠 앞에서 손으로 결인을 맺으면 손끝에서 술식이 발동해 화면 밖으로 날아온다.</p>
+    <p class="lede">검지로 손끝에 술식을 모은 뒤, 손을 카메라 쪽으로 빠르게 내지르면 화면 밖으로 날아온다.</p>
     <div class="moves">
-      <div class="move" style="--c:var(--blue)"><span class="k">蒼</span><span class="n">아오</span><span class="h">오른손 검지를 펴면 손끝에 모이고, 접으면 화면으로 날아온다.</span></div>
-      <div class="move" style="--c:var(--red)"><span class="k">赫</span><span class="n">아카</span><span class="h">왼손 검지. 손끝에 모였다가 화면으로 날아와 터진다.</span></div>
-      <div class="move" style="--c:var(--purple)"><span class="k">茈</span><span class="n">무라사키</span><span class="h">양손 검지를 맞대면 모든 것이 지워지고 사람만 남는다.</span></div>
+      <div class="move" style="--c:var(--blue)"><span class="k">蒼</span><span class="n">아오</span><span class="h">오른손 검지로 모으고, 손을 앞으로 내지르면 발사.</span></div>
+      <div class="move" style="--c:var(--red)"><span class="k">赫</span><span class="n">아카</span><span class="h">왼손 검지로 모으고, 손을 앞으로 내지르면 날아와 터진다.</span></div>
+      <div class="move" style="--c:var(--purple)"><span class="k">茈</span><span class="n">무라사키</span><span class="h">양손 검지를 맞대 1초 모은 뒤 내지르면 모든 것이 지워지고 사람만 남는다.</span></div>
       <div class="move" style="--c:var(--bone)"><span class="k">無</span><span class="n">무량공처</span><span class="h">검지·중지를 0.5초 유지하면 무한의 공간이 펼쳐진다.</span></div>
     </div>
     <div class="row">
@@ -143,6 +143,14 @@ function fly(o, dt, dur) {
   return o.z >= 1;
 }
 const launch = o => { o.phase = 'fly'; o.sx = o.x; o.sy = o.y; o.z = 0; o.k = 1; o.trail = []; };
+const fizzle = (x, y, spr) => burst(x, y, spr, 14, 200, 2); // charge dropped without a thrust
+// A forward thrust of a hand releases whatever that hand is holding.
+function thrust(side) {
+  const p = purples.find(p => p.follow && p.phase === 'charge' && p.t >= .9);
+  if (p) { launch(p); shake(10); return; }
+  if (side === 'R') { const b = blues.find(b => b.follow && b.phase === 'hold' && b.t > .2); if (b) { b.follow = null; launch(b); } }
+  else { const r = reds.find(r => r.follow && r.phase === 'charge' && r.c > .2); if (r) launch(r); }
+}
 function burst(x, y, spr, n, speed, size) {
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = speed * (.3 + Math.random());
     part({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .35 + Math.random() * .45, size: size * (.5 + Math.random()), kind: 'spark', spr: Math.random() < .3 ? 'white' : spr, drag: .93 }); }
@@ -182,8 +190,8 @@ function update(dt) {
     b.t += dt;
     if (b.phase === 'hold') {
       if (b.follow) { const h = hands.R;
-        if (h && h.g === 'point' && !cam.fused) { const t = h.pts[8]; b.x += (t.x - b.x) * Math.min(1, dt * 14); b.y += (t.y - b.y) * Math.min(1, dt * 14); }
-        else b.hold = 0; }
+        if (h) { const t = h.pts[8]; b.x += (t.x - b.x) * Math.min(1, dt * 14); b.y += (t.y - b.y) * Math.min(1, dt * 14); }
+        if (S.t - (cam.lastPoint.R || 0) > 1.2) { b.done = true; fizzle(b.x, b.y, 'blue'); continue; } }
       if (Math.random() < .7) part({ kind: 'orbit', b, a: Math.random() * TAU, r: 70 + Math.random() * 90, vr: 120 + Math.random() * 80, va: 1.4, life: 1, size: 1.5 + Math.random() * 2, spr: Math.random() < .25 ? 'white' : 'blue' });
       if (b.t >= b.hold) launch(b);
     } else if (fly(b, dt, .5)) {
@@ -196,10 +204,11 @@ function update(dt) {
 
   for (const r of reds) {
     if (r.phase === 'charge') {
-      if (r.follow) { const h = hands.L; if (h && h.g === 'point') { r.x = h.pts[8].x; r.y = h.pts[8].y; } else r.c = 1; }
+      if (r.follow) { const h = hands.L; if (h) { r.x = h.pts[8].x; r.y = h.pts[8].y; }
+        if (S.t - (cam.lastPoint.L || 0) > 1.2) { r.done = true; fizzle(r.x, r.y, 'red'); continue; } }
       r.c += dt;
       if (Math.random() < .6) { const a = Math.random() * TAU, d = 50 + Math.random() * 50; part({ x: r.x + Math.cos(a) * d, y: r.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 5, vy: -Math.sin(a) * d * 5, life: .2, size: 1.5, kind: 'spark', spr: 'red', drag: 1 }); }
-      if (r.c >= .5) launch(r);
+      if (!r.follow && r.c >= .5) launch(r); // hand-cast charges wait for a thrust
       continue;
     }
     if (Math.random() < .5) part({ x: r.x, y: r.y, vx: (Math.random() - .5) * 200, vy: (Math.random() - .5) * 200, life: .3, size: 4 * r.k, spr: 'red', drag: .9 });
@@ -217,8 +226,9 @@ function update(dt) {
     p.t += dt;
     if (p.phase === 'charge') {
       if (p.follow && cam.fused) { p.x = cam.fused.x; p.y = cam.fused.y; }
+      if (p.follow && S.t - cam.lastFused > 1.5) { p.done = true; fizzle(p.x, p.y, 'purple'); continue; }
       if (Math.random() < .8) { const a = Math.random() * TAU, d = 120 + Math.random() * 160; part({ x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.4, vy: -Math.sin(a) * d * 2.4, life: .4, size: 1.5 + Math.random() * 2, kind: 'spark', spr: Math.random() < .5 ? 'blue' : 'red', drag: .97 }); }
-      if (p.t >= 1.2) { launch(p); shake(10); }
+      if (!p.follow && p.t >= 1.2) { launch(p); shake(10); }
     } else if (fly(p, dt, .55)) {
       p.done = true; S.eraseT = 5; S.eraseAge = 0; flash(1); shake(18);
     }
@@ -343,8 +353,11 @@ function render() {
 // ---------- camera + MediaPipe Tasks (runs in-browser) ----------
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODELS = 'https://storage.googleapis.com/mediapipe-models/';
-const cam = { on: false, hands: null, seg: null, res: null, mask: null, cur: {}, fused: null, g: {}, n: 0, vt: -1, flip: false, fake: null };
-window.__feed = r => { cam.res = cam.fake = r; }; // test hook: inject synthetic hand results
+const cam = { on: false, hands: null, seg: null, res: null, mask: null, cur: {}, fused: null, g: {}, n: 0, vt: -1, flip: false, fake: null,
+  resId: 0, seenId: 0, gs: {}, hs: {}, lastPoint: {}, lastFused: -9 };
+// test hooks: inject synthetic hand results, read effect phases
+window.__feed = r => { cam.res = cam.fake = r; cam.resId++; };
+window.__state = () => ({ blue: blues.map(b => b.phase), red: reds.map(r => r.phase), purple: purples.map(p => p.phase), erase: S.eraseT > 0 });
 async function make(Task, fileset, opts) {
   try { return await Task.createFromOptions(fileset, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'GPU' } }); }
   catch { return Task.createFromOptions(fileset, { ...opts, baseOptions: { ...opts.baseOptions, delegate: 'CPU' } }); }
@@ -373,7 +386,7 @@ async function startCamera() {
     const V = await import(MP + '/vision_bundle.mjs');
     const fileset = await V.FilesetResolver.forVisionTasks(MP + '/wasm');
     [cam.hands, cam.seg] = await Promise.all([
-      make(V.HandLandmarker, fileset, { baseOptions: { modelAssetPath: MODELS + 'hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: .6, minTrackingConfidence: .5 }),
+      make(V.HandLandmarker, fileset, { baseOptions: { modelAssetPath: MODELS + 'hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: .35, minHandPresenceConfidence: .35, minTrackingConfidence: .35 }),
       make(V.ImageSegmenter, fileset, { baseOptions: { modelAssetPath: MODELS + 'image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite' }, runningMode: 'VIDEO', outputConfidenceMasks: true, outputCategoryMask: false })
     ]);
     cam.on = true; enter();
@@ -404,17 +417,30 @@ function pumpCam(now) {
   if (!camReady() || video.currentTime === cam.vt) return; // only new video frames
   cam.vt = video.currentTime;
   const r = cam.hands.detectForVideo(video, now);
-  cam.res = cam.fake || { multiHandLandmarks: r.landmarks, multiHandedness: r.handedness.map(h => ({ label: h[0].categoryName })) }; cam.n++;
+  cam.res = cam.fake || { multiHandLandmarks: r.landmarks, multiHandedness: r.handedness.map(h => ({ label: h[0].categoryName })) }; cam.n++; cam.resId++;
   const needSeg = purples.length || S.eraseT > 0 || S.domainT > 0 || S.domW > .01;
   if (needSeg) { cam.flip = !cam.flip; if (cam.flip) cam.seg.segmentForVideo(video, now, res => { const m = res.confidenceMasks && res.confidenceMasks[0]; if (m) buildMask(m); }); }
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function gestureOf(lm) {
-  const ext = i => dist(lm[0], lm[i]) > dist(lm[0], lm[i - 2]) * 1.12; // tip farther from wrist than PIP joint
-  const f = [ext(8), ext(12), ext(16), ext(20)];
-  if (f[0] && !f[1] && !f[2] && !f[3]) return 'point';
-  if (f[0] && f[1] && !f[2] && !f[3]) return 'two';
+  // 3D (z included) so a finger aimed at the camera still reads as extended
+  const ar = (video.videoWidth || 16) / (video.videoHeight || 9);
+  const d3 = (a, b) => Math.hypot((a.x - b.x) * ar, a.y - b.y, ((a.z || 0) - (b.z || 0)) * ar);
+  const ratio = i => d3(lm[0], lm[i]) / (d3(lm[0], lm[i - 2]) || 1); // tip vs PIP distance from wrist
+  const up = i => ratio(i) > 1.05, down = i => ratio(i) < 1.1;
+  if (up(8) && down(12) && down(16) && down(20)) return 'point';
+  if (up(8) && up(12) && down(16) && down(20)) return 'two';
   return null;
+}
+const palm = p => dist(p[0], p[9]) + dist(p[5], p[17]);
+// Thrust = the hand's on-screen size grows fast (moving toward the camera). Runs once per new detection.
+function trackThrust(side, h, now) {
+  const st = cam.hs[side] || (cam.hs[side] = { n: 0, v: 0, last: -9 });
+  if (!h) { st.n = 0; st.v = 0; return; }
+  const ls = Math.log(palm(h.pts));
+  if (st.n) { const v = (ls - st.ls) / Math.max(.016, now - st.t); st.v = st.v * .5 + v * .5; }
+  st.ls = ls; st.t = now; st.n++;
+  if (st.n > 3 && st.v > 1.6 && now - st.last > .6) { st.last = now; st.v = 0; thrust(side); }
 }
 function hold(key, name, need, dt, fire) {
   const g = cam.g[key] || (cam.g[key] = { name: null, t: 0, fired: false });
@@ -431,18 +457,25 @@ function gestures(dt) {
     r.multiHandLandmarks.forEach((lm, i) => {
       // MediaPipe labels assume a mirrored image; our input is not mirrored, so swap
       const side = (r.multiHandedness[i] && r.multiHandedness[i].label) === 'Left' ? 'R' : 'L';
-      cur[side] = { pts: lm.map(map), g: gestureOf(lm) };
+      // keep the last gesture through brief misreads (0.25s) so holds don't reset
+      const raw = gestureOf(lm), gs = cam.gs[side] || (cam.gs[side] = { g: null, t: -9 });
+      if (raw) { gs.g = raw; gs.t = S.t; }
+      const g = raw || (S.t - gs.t < .25 ? gs.g : null);
+      if (g === 'point') cam.lastPoint[side] = S.t;
+      cur[side] = { pts: lm.map(map), g };
     });
   }
   cam.cur = cur;
+  if (cam.resId !== cam.seenId) { cam.seenId = cam.resId; const now = performance.now() / 1000; trackThrust('R', cur.R, now); trackThrust('L', cur.L, now); }
   const R = cur.R, L = cur.L;
-  const fused = R && L && R.g === 'point' && L.g === 'point' && dist(R.pts[8], L.pts[8]) < Math.min(W, H) * .15;
+  const fused = R && L && R.g === 'point' && L.g === 'point' && dist(R.pts[8], L.pts[8]) < Math.min(W, H) * .18;
   cam.fused = fused ? { x: (R.pts[8].x + L.pts[8].x) / 2, y: (R.pts[8].y + L.pts[8].y) / 2 } : null;
+  if (fused) cam.lastFused = S.t;
   const prog = { blue: 0, red: 0, purple: 0, domain: 0 };
   prog.purple = hold('both', fused ? 'purple' : null, .35, dt, () => castPurple(cam.fused.x, cam.fused.y, 'both'));
   const rg = !fused && R ? R.g : null, lg = !fused && L ? L.g : null;
-  const rp = hold('R', rg, rg === 'two' ? .5 : .15, dt, () => rg === 'point' ? castBlue(R.pts[8].x, R.pts[8].y, 'R') : castDomain());
-  const lp = hold('L', lg, lg === 'two' ? .5 : .15, dt, () => lg === 'point' ? castRed(L.pts[8].x, L.pts[8].y, 'L') : castDomain());
+  const rp = hold('R', rg, rg === 'two' ? .5 : .12, dt, () => rg === 'point' ? castBlue(R.pts[8].x, R.pts[8].y, 'R') : castDomain());
+  const lp = hold('L', lg, lg === 'two' ? .5 : .12, dt, () => lg === 'point' ? castRed(L.pts[8].x, L.pts[8].y, 'L') : castDomain());
   if (rg === 'point') prog.blue = rp; else if (rg === 'two') prog.domain = rp;
   if (lg === 'point') prog.red = lp; else if (lg === 'two') prog.domain = Math.max(prog.domain, lp);
   const active = { blue: blues.length > 0, red: reds.length > 0, purple: purples.length > 0 || S.eraseT > 0, domain: S.domainT > 0 };
